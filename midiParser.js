@@ -66,17 +66,47 @@ MIDIParser.prototype.getNextTrackChunk = function() {
     var trackEvents = this.stateBuffer.splice(0, chunkSize);
     var midiEvents = [];
 
-    while(trackEvents.length > 0) {
-        var variableLengthValue = trackEvents.popBytes(1);
-        if(variableLengthValue >= 128) variableLengthValue |= trackEvents.popBytes(1) << 8;
-        var midiEvent = trackEvents.popBytes(1);
+    // TODO:
+    // Variable length encoded deltas need to be figured out.
 
-        midiEvents.push({
-            variableLengthValue: variableLengthValue,
-            midiEvent: midiEvent,
-            byteTwo: trackEvents.popBytes(1),
-            byteThree: trackEvents.popBytes(1)
-        });
+    while(trackEvents.length > 0) {
+        var delta = trackEvents.popBytes(1);
+        if(delta >= 128) delta |= trackEvents.popBytes(1) << 8;
+
+        var nextByte = trackEvents.popBytes(1);
+        if(nextByte === 0xFF) {
+            var metaType = trackEvents.popBytes(1);
+            var metaDataLength = trackEvents.popBytes(1);
+            if(metaDataLength >= 128) metaDataLength |= trackEvents.popBytes(1) << 8;
+            midiEvents.push({
+                meta: true,
+                delta: delta,
+                metaType: metaType,
+                metaDataLength: metaDataLength,
+                eventData: trackEvents.popBytes(metaDataLength, 'hex')
+            });
+        } else if(nextByte === 0xF0) {
+            var sysEventLength = trackEvents.popBytes(1);
+            if(sysEventLength >= 128) sysEventLength |= trackEvents.popBytes(1) << 8;
+            var sysEventData = trackEvents.popBytes(sysEventLength);
+            midiEvents.push({
+                sys: true,
+                sysEventLength: sysEventLength,
+                sysEventData: sysEventData
+            })
+            trackEvents.popBytes(1);
+        } else {
+            if(nextByte == 0) {
+
+            }
+            midiEvents.push({
+                midiEvent: nextByte,
+                delta: delta,
+                byteTwo: trackEvents.popBytes(1),
+                byteThree: trackEvents.popBytes(1),
+            });
+        }
+
     }
 
     return midiEvents;
