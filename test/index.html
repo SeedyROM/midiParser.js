@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Midi Parser Test</title>
+</head>
+<body>
+	<script src="../src/midiParser.js" charset="utf-8"></script>
+	<script>
+		window.onload = function() {
+		    var p = new MIDIParser();
+		    p.loadData('midi/bach_bourree.mid');
+		    p.parse(function(buffer) {
+
+		    });
+		};
+	</script>
+</body>
+</html>

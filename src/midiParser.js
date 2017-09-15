@@ -142,13 +142,3 @@ MIDIParser.prototype.loadData = function(url) {
     }.bind(this);
     midiRequest.send(null);
 };
-
-window.onload = function() {
-    var p = new MIDIParser();
-    p.loadData('/midi/bach_bourree.mid');
-    p.parse(function(buffer) {
-
-    });
-};
-
-// Array.prototype.popBytes = undefined;
