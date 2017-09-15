@@ -36,7 +36,7 @@ MIDIParser.prototype.resetBufferState = function() {
     this.stateBuffer = this.buffer.slice();
 }
 
-MIDIParser.prototype.getHeaderAndVerify = function() {
+MIDIParser.prototype.verifyHeader = function() {
     var headerStart = this.popBytes(4, 'hex'); // MThd '4d546864'
     if(headerStart !== '4d546864') throw 'Invalid midi file!';
 
@@ -50,44 +50,44 @@ MIDIParser.prototype.getHeaderAndVerify = function() {
     };
 }
 
-MIDIParser.prototype.getTrackChunk = function() {
+MIDIParser.prototype.getTrackChunks = function() {
+    var chunks = [];
+    for(var i = 0; i < this.fileInfo.trackChunks; i++) {
+        chunks.push(this.getNextTrackChunk());
+    }
+    return chunks;
+}
+
+MIDIParser.prototype.getNextTrackChunk = function() {
     var trackChunkStart = this.popBytes(4, 'hex'); // MTrk '4d54726b'
     if(trackChunkStart !== '4d54726b') throw 'Error parsing broken track chunk...';
+
     var chunkSize = this.popBytes(4);
     var trackEvents = this.stateBuffer.splice(0, chunkSize);
+    var midiEvents = [];
 
-    var notes = [];
-
-    while(trackEvents.length-1 > 0) {
+    while(trackEvents.length > 0) {
         var variableLengthValue = trackEvents.popBytes(1);
         if(variableLengthValue >= 128) variableLengthValue |= trackEvents.popBytes(1) << 8;
+        var midiEvent = trackEvents.popBytes(1);
 
-        var midiEvent = Math.abs(~trackEvents.popBytes(1) >> 1);
-
-        // Is note on/off?
-        if(midiEvent >= 0x80 && midiEvent <= 0x9F) {
-            var note = {};
-
-            note.channel = (midiEvent - 0x80) + 1;
-            note.noteNumber = Math.abs(~trackEvents.popBytes(1) >> 1);
-            note.noteVelocity = Math.abs(~trackEvents.popBytes(1) >> 1);
-
-            notes.push(note);
-        } else {
-            trackEvents.pop(2);
-        }
+        midiEvents.push({
+            variableLengthValue: variableLengthValue,
+            midiEvent: midiEvent,
+            byteTwo: trackEvents.popBytes(1),
+            byteThree: trackEvents.popBytes(1)
+        });
     }
 
-    return notes;
+    return midiEvents;
 }
 
 MIDIParser.prototype.callParse = function() {
-    this.getHeaderAndVerify();
-    var notes = this.getTrackChunk();
-    while(notes) {
-        console.log(notes);
-        notes = this.getTrackChunk();
-    }
+    this.verifyHeader();
+    var chunks = this.getTrackChunks();
+    chunks.forEach(function(chunk, index) {
+        console.log(chunk);
+    });
     this.resetBufferState();
     this.parseFunc(this.buffer);
 };
